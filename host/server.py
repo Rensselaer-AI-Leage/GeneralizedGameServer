@@ -17,6 +17,9 @@ import random
 import socket
 import threading
 
+import helpers.config as cfg
+import helpers.message as msg
+
 # Mostly just a struct to hold player information
 class Player:
 	def __init__(self, token, name, address, connection):
@@ -45,20 +48,22 @@ class Server:
 		# self.match_lock = threading.Mutex()
 		self.matches = dict()
 		self.threads = []
-
-		self.alive = threading.Event() # set in run_match
-
+		self.alive = threading.Event() # Set in run_match
 		self.game = game
 
-		# TODO: replace this with a config file
-		self.address = "" # localhost
-		# Get port from command-line arguments
-		try:
-			self.port = int(sys.argv[1])
-		except:
-			# improper usage, terminate
-			self.report("Usage:\n%s [port]" % sys.argv[0])
-			sys.exit(1)
+		# Load settings from config file
+		settings = cfg.load("server.cfg")
+		self.ppm = int(settings["ppm"])
+		self.port = int(settings["port"])
+		self.address = settings["address"]
+		self.prune = int(settings["prune"])
+		self.sleep = int(settings["sleep"])
+		self.win_by = int(settings["win_by"])
+		self.timeout = float(settings["timeout"])
+		self.min_games = int(settings["min_games"])
+		self.max_games = int(settings["max_games"])
+		self.listen_queue = int(settings["listen_queue"])
+
 
 	'''
 	@description Prints a message to a log, in this case just the terminal.
@@ -210,7 +215,7 @@ class Server:
 		self.sock.bind(server_address)
 
 		# Start looking for connections
-		self.sock.listen(1)
+		self.sock.listen(self.listen_queue)
 
 	'''
 	@description Take a pool of players and create a groups
@@ -252,13 +257,11 @@ class Server:
 	'''
 	def setup_matches(self, ppm, timeout, pairing_method):
 		# TODO: implement bracket and round-robin
-		PRUNE = 10
-
 		ct = 0
 		while self.alive.isSet():
 			ct += 1
 			# Check that all players are still connected every PRUNE loops
-			if not ct % PRUNE:
+			if not ct % self.prune:
 				self.prune_players()
 
 			# Get a list of all players who are in a game
@@ -279,12 +282,12 @@ class Server:
 					player.in_game = True
 
 				# Make new thread for the match
-				match = threading.Thread(target=self.game, args=(playing_players, uniqid, self.matches, self.alive))
+				match = threading.Thread(target=self.match, args=(playing_players, uniqid))
 				match.start()
 				self.threads.append(match)
 
 			# Wait one second between making new games
-			time.sleep(1)
+			time.sleep(self.sleep)
 
 	'''
 	@description
@@ -295,15 +298,15 @@ class Server:
 	@param game_logic function(*moves) function to run the actual game logic
 	@return list<tuple(Player, score)> list of tuples of players and their scores after the match
 	'''
-	def match(self, active_players, min_games, max_games, win_by, game_logic):
+	def match(self, active_players, match_id):
 		# Initiate score to zero
 		scores = [(player, 0) for player in active_players]
 
 		# Play games until max_games have been played
 		games = 0
-		while games < max_games:
+		while games < self.max_games:
 			# Only check for a win if at least min_games have been played
-			if games >= min_games:
+			if games >= self.min_games:
 				# Check how much first place is winning by
 
 				# Get two highest scores
@@ -312,7 +315,7 @@ class Server:
 
 				# Check if the difference between the first two highest scores is at least win_by
 				diff = first_place[1] - second_place[1]
-				if diff >= win_by:
+				if diff >= self.win_by.
 					# All criteria has been met to end the game
 					return scores
 
@@ -321,7 +324,7 @@ class Server:
 			moves = self.poll_all(tuples)
 
 			# Get results based on polled moves
-			results = game_logic(*moves)
+			results = self.game(*moves)
 
 			# One more game has been played
 			games += 1
@@ -334,7 +337,7 @@ class Server:
 						score[1] += res[1]
 						break
 
-		# Ee are done, return score
+		# We are done, return score
 		return score
 
 	'''
@@ -347,7 +350,7 @@ class Server:
 
 		try:
 			# Create a new thread for pairing players
-			match_maker = threading.Thread(target=self.setup_matches, args=(2, 0.1, self.random_pairings))
+			match_maker = threading.Thread(target=self.setup_matches, args=(self.ppm, self.timeout, self.random_pairings))
 			match_maker.start()
 			self.threads.append(match_maker)
 

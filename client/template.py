@@ -5,7 +5,7 @@ use this, all you need to edit is the rps_strategy function
 
 import random
 
-from helper import BotHelper
+from bot_helper import *
 
 _TEAM_NAME = "YourName" # Note: change this to your team's name
 
