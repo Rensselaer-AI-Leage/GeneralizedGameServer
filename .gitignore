@@ -1,0 +1,7 @@
+#Exclude pyc files
+Server/ai_server.pyc
+Server/do_rps.pyc
+#Exclude batch files
+run_bot.bat
+run_server.bat
+run_test.bat
