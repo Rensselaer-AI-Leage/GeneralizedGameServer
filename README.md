@@ -1,5 +1,5 @@
 # GeneralizedGameServer
-A server for hosting AI-programming competitions.
+<p>A server for hosting AI-programming competitions.</p>
 <br>
 Design principles:
 <ul>
