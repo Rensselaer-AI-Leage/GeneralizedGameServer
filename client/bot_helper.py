@@ -45,7 +45,11 @@ class BotHelper:
 		done_with_ack = False
 		while True:
 			# Wait for a message from the server
-			type, body = self.message.recv()
+			try:
+				type, body = self.message.recv()
+			except:
+				self.cleanup()
+				break
 
 			if type == msg._SERVER["ACK"] and not done_with_ack:
 				self.message.sendAck()
@@ -68,14 +72,17 @@ class BotHelper:
 				self.message.sendAck()
 				done_with_ack = False
 				self.cleanup()
-				break
+				break # Done talking to server, quit out
 			else:
 				print "Unkown command type '%s', body: %s" % (type, body)
-				continue # unknown command, ignore
+				continue # Unknown command, ignore
 
 	def throw(self):
 		move = self.strategy(self.history)
 		self.message.sendMove(move)
 
 	def cleanup(self):
-		server.close()
+		try:
+			self.server.close()
+		finally:
+			print "Connection with server terminated"
