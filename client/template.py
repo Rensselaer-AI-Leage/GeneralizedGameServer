@@ -9,7 +9,7 @@ from bot_helper import *
 
 _TEAM_NAME = "YourName" # Note: change this to your team's name
 
-####################################
+################################################################################
 
 '''
 @description: Decides which move to make
@@ -26,7 +26,7 @@ def strategy(history):
 	#
 	#END YOUR CODE#
 
-####################################
+################################################################################
 
 # Initilize the connection
 bot = BotHelper(_TEAM_NAME, strategy)

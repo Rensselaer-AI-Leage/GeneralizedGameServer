@@ -7,6 +7,7 @@ import helpers.message as msg
 class BotHelper:
 	def __init__(self, name, strategy):
 		# Get server ip and port from commandline
+		#  TODO: replace with config file
 		try:
 			server_info = (sys.argv[1], int(sys.argv[2]))
 		except:
@@ -28,18 +29,18 @@ class BotHelper:
 
 		# Initialize other member variables
 		self.name = name
-		self.message = Message(server)
+		self.message = msg.Message(self.server, "", "")
 		self.strategy = strategy
 		self.history = []
 		self.gamestate = None
 
 		# Connect to the server
-		server.connect(server_info)
+		self.server.connect(server_info)
 
 		# Start waiting for server requests
 		self.run()
 
-	def self.run(self):
+	def run(self):
 		# Only send an ACK as a response to an ACK once, don't want to enter an infinite ACK loop
 		done_with_ack = False
 		while True:

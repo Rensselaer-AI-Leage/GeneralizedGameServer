@@ -17,8 +17,8 @@ import random
 import socket
 import threading
 
-import helpers.config as cfg
-import helpers.message as msg
+from helpers import config as cfg
+from helpers import message as msg
 
 # Mostly just a struct to hold player information
 class Player:
@@ -52,10 +52,10 @@ class Server:
 		self.game = game
 
 		# Load settings from config file
-		settings = cfg.load("server.cfg")
+		settings = cfg.load("host/server.cfg")
 		self.ppm = int(settings["ppm"])
 		self.port = int(settings["port"])
-		self.address = settings["address"]
+		self.address = settings["address"][:-1] #strip newline character
 		self.prune = int(settings["prune"])
 		self.sleep = int(settings["sleep"])
 		self.win_by = int(settings["win_by"])
@@ -226,7 +226,7 @@ class Server:
 	def random_pairings(self, players, ppm):
 		# Get a random selection of ppm players to be in the game
 		playing_players = random.sample(players, ppm)
-
+		# Return that random selection
 		return playing_players
 
 	'''
@@ -315,7 +315,7 @@ class Server:
 
 				# Check if the difference between the first two highest scores is at least win_by
 				diff = first_place[1] - second_place[1]
-				if diff >= self.win_by.
+				if diff >= self.win_by:
 					# All criteria has been met to end the game
 					return scores
 
@@ -376,7 +376,7 @@ class Server:
 	@modifies self.threads
 	@effects empties list
 	'''
-	def cleanup(slef):
+	def cleanup(self):
 		# Clean up threads
 		self.report("Attempting to close threads...")
 		self.alive.clear() # Unset alive, this informs the class that no more server actions should take place
@@ -394,5 +394,6 @@ class Server:
 
 
 '''
-Flavor text here
+Why is this server code so complicated? I can make an RPS server in like 100 lines.
+Don't worry, we'll fix it in the flavor text.
 '''

@@ -8,11 +8,11 @@ if __name__ == "__main__":
 	#  might change this to use the config file
 	if not len(sys.argv) == 2:
 		# Improper usage, terminate
-		print "Usage:\n%s [game_module]" % argv[0]
+		print "Usage:\n%s [game_module]" % sys.argv[0]
 		sys.exit(1)
 	else:
 		# Never used importlib before, this might not work... needs testing
-		mod_name = "GGS.host.games.%s" % argv[1]
+		mod_name = "host.games.%s" % sys.argv[1]
 		try:
 			# Import the library as RAIL
 			RAIL = importlib.import_module(mod_name)

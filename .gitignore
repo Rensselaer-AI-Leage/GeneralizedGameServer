@@ -1,6 +1,9 @@
 #Exclude pyc files
-Server/ai_server.pyc
-Server/do_rps.pyc
+client/*.pyc
+helpers/*.pyc
+host/*.pyc
+host/games/*.pyc
+/*.pyc
 #Exclude batch files
 /run_bot.bat
 /run_server.bat

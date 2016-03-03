@@ -3,7 +3,7 @@
 @param throw2 string single character: r, p, or s
 @return int -1 for draw, else which player wins
 '''
-def rps(*throw):
+def game(*throw):
 	#hope there are only 2 players
 	throw0, throw1 = tuple([i[1].lower() for i in throw])
 	#throw0, throw1 = throw0.lower(), throw1.lower()
