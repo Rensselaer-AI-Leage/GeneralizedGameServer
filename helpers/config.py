@@ -5,8 +5,12 @@
 '''
 def load(filen):
 	config = dict()
-	with open(filen) as cfg:
-		for line in cfg:
-			parts = line.split(':')
-			config[parts[0]] = parts[1]
-	return config
+	try:
+		with open(filen) as cfg:
+			for line in cfg:
+				parts = line.split(':')
+				config[parts[0]] = parts[1]
+			return config
+	except Exception as e:
+		print "Error opening file " + filen
+		return None

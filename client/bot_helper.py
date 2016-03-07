@@ -52,7 +52,6 @@ class BotHelper:
 			# Wait for a message from the server
 			try:
 				got = self.message.recv()
-				print got
 				rq_type, body = got
 			except Exception as e:
 				print "The following error occured:", e

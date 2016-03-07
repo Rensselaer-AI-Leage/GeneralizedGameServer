@@ -1,1 +1,1 @@
-pass
+__all__ = ["rps"] # Update this as new games are added

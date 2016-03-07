@@ -1,1 +1,1 @@
-pass
+__all__ = ["config", "message"]

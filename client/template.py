@@ -16,7 +16,7 @@ _TEAM_NAME = "YourName_" + str(random.randrange(10)) # Note: change this to your
 @param history list<string> all the moves your opponent has made so far
 @return string your move, 'R', 'P', or 'S'
 '''
-def strategy(history):
+def strategy(history=None):
 	#YOUR CODE HERE#
 	#
 

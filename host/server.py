@@ -10,6 +10,8 @@ TODO:
 	replace all tuples with structs
 
 	write exception logging function to call whenever an exception is caught
+
+	redo poll() and poll_all() so they aren't spaghetti
 '''
 
 import sys
@@ -18,6 +20,7 @@ import random
 import socket
 import threading
 import datetime
+from multiprocessing.pool import ThreadPool
 
 from helpers import message
 
@@ -38,8 +41,8 @@ class Match:
 		self.winner = -1
 		self.results = ''
 
-# Server class handles all communication between this program and client scripts
 class Server:
+	''' Server class handles all communication between this program and client scripts '''
 
 	'''
 	@description Constructor, initializes data members and ensures correct usage.
@@ -143,34 +146,32 @@ class Server:
 	'''
 	def poll_all(self, recipient_infos):
 		# Recipient_info entries are of form: (player, type, size)
-		results = []
-		threads = []
+		results = dict()
+		threads = dict()
 
-		# Replace the inner-workings of the for-loop with a closure to prevent scoping issues
-		def in_loop(msg_info):
-			res = []
-			results.append(res)
-
-			# Unpack info since res also needs to be passed
-			receiver, rq_type, size = msg_info
-
-			# Run polls on separte threads since they wait for input
-			poll_thread = threading.Thread(target=self.poll, args=(receiver, rq_type, size, res))
-			poll_thread.start()
-			threads.append(poll_thread)
-
-		# Go through each player to poll
+		# For each recipient, make an asyncronous process to handle their response
+		num_reqs = len(recipient_infos)
+		pool = ThreadPool(processes=num_reqs)
 		for info in recipient_infos:
-			in_loop(info)
+			# Unpack poll() args
+			receiver = info[0]
+			rq_type  = info[1]
+			size     = info[2]
 
-		# Wait for threads to complete (response received)
-		for thread in threads:
-			thread.join()
+			# Run each poll on a separate thread
+			threads[receiver] = pool.apply_async(self.poll, (receiver, rq_type, size,))
+			# Get the results, store them in a dict
+
+		# Seems like it defeats the purpose of polling asyncronously, but it doesn't (brain teaser?)
+		for info in recipient_infos:
+			receiver = info[0]
+			results[receiver] = threads[receiver].get()
 
 		print results # debug
+
 		# Return a dict of players to their response
-		return zip([key[0] for key in results], [val[1] for val in results])
-		#return dict(results)
+		#  Note: there is some redundant information here, don't worry about it
+		return zip([key[0] for key in results.iteritems()], [val[1] for val in results.iteritems()])
 
 	'''
 	@description Sends a player a request for input, then waits for a response. Validates received data with a token.
@@ -180,10 +181,9 @@ class Server:
 	@param out tuple<Player, tuple<string, string> where to send the result
 	@return tuple<Player, tuple<string, string> tuple of sender and either the response received or None on failure
 	'''
-	def poll(self, sender, rq_type, size, out=None):
+	def poll(self, sender, rq_type, size):
 		# TODO: timeout if no response received after 1 second
 		self.report("Sending request %s to %s, expected size %i" % (rq_type, sender.name, size))
-
 		err = self.send(sender, rq_type, "Requesting a response")
 
 		# If the request didn't get send, the connection is lost
@@ -194,7 +194,6 @@ class Server:
 			try:
 				response = sender.msg.recv()
 				out = (sender, response)
-				print response
 			except Exception as e:
 				out = (sender, None)
 				self.handle_exception(e)
@@ -220,7 +219,7 @@ class Server:
 		self.players.append(player)
 
 		# Inform player of his token
-		#self.send(player, 'ID', token)
+		#self.send(player, 'ID', token) # This might get replaced if message handles tokens
 
 		# Return player object
 		return player
@@ -257,6 +256,7 @@ class Server:
 	@effects removes all disconnected players from self.players
 	'''
 	def prune_players(self):
+		return self.players # TODO: fix prune_players
 		# New list for connected players
 		new_playerlist = []
 
@@ -265,7 +265,7 @@ class Server:
 		reses = self.poll_all(tuples)
 
 		# Get a list of all players who are in a game
-		new_playerlist = [res for res in reses if not reses[res] == None]
+		new_playerlist = [res for res in reses if not reses[res] == None] # Could be if reses[res], but that wouldn't be Pythonic
 		self.players = new_playerlist
 
 	'''
@@ -321,6 +321,8 @@ class Server:
 	@return list<tuple(Player, score)> list of tuples of players and their scores after the match
 	'''
 	def match(self, active_players, match_id):
+		self.log("Starting a new match between %s and %s" % (active_players[0].name, active_players[1].name) #TODO: work with multipla players
+
 		# Initiate score to zero
 		scores = [(player, 0) for player in active_players]
 

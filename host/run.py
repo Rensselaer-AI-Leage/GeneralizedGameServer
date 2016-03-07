@@ -26,6 +26,11 @@ if __name__ == "__main__":
 	cfg_file = "host/games/%s.cfg" % sys.argv[1]
 	settings = cfg.load(cfg_file)
 
+	# Could not load config file, probably it doesn't exist
+	if not settings:
+		print "Could not open configuration file. Terminating."
+		sys.exit(1)
+
 	# Attempt to initiate the server with the dynamically imported game
 	server = Server(RAIL.game, settings)
 	server.init()

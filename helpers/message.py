@@ -2,6 +2,8 @@ import collections
 import random
 
 '''
+	TODO: add proper documentation
+
 	Types:
 		ID - player's token
 		OM - opponent's move
