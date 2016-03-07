@@ -1,6 +1,8 @@
 # Generalized Game Server
 <p>A server for hosting AI-programming competitions.</p>
 
+<p>It is worthy to note that this program is still under heavy development. While it should work for the RPS competition at this point, more functionality needs to be added for it to be suitable for more complicated games.</p>
+
 <p>Design principles:
 <ul>
     <li>Keep everything as general as possible so that switching games is as easy as changing one line of code.</li>

@@ -2,6 +2,7 @@ import importlib
 import sys
 
 from server import *
+from helpers import config as cfg
 
 if __name__ == "__main__":
 	# Get what game we're using from command line
@@ -21,7 +22,11 @@ if __name__ == "__main__":
 			print "Error importing module: %s" % (mod_name)
 			sys.exit(1)
 
+	# Get the proper config file based on game
+	cfg_file = "host/games/%s.cfg" % sys.argv[1]
+	settings = cfg.load(cfg_file)
+
 	# Attempt to initiate the server with the dynamically imported game
-	server = Server(RAIL.game)
+	server = Server(RAIL.game, settings)
 	server.init()
 	server.go()

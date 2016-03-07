@@ -7,7 +7,7 @@ import random
 
 from bot_helper import *
 
-_TEAM_NAME = "YourName" # Note: change this to your team's name
+_TEAM_NAME = "YourName_" + str(random.randrange(10)) # Note: change this to your team's name
 
 ################################################################################
 
@@ -31,4 +31,4 @@ def strategy(history):
 # Initilize the connection
 bot = BotHelper(_TEAM_NAME, strategy)
 
-raw_input("Press the any key to finish.")
+raw_input("Press the any key to finish. ")

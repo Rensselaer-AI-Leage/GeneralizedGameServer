@@ -35,10 +35,15 @@ class BotHelper:
 		self.gamestate = None
 
 		# Connect to the server
-		self.server.connect(server_info)
+		try:
+			self.server.connect(server_info)
+		except:
+			print "Could not connect to the server. Terminating."
+
 
 		# Start waiting for server requests
 		self.run()
+
 
 	def run(self):
 		# Only send an ACK as a response to an ACK once, don't want to enter an infinite ACK loop
@@ -46,29 +51,32 @@ class BotHelper:
 		while True:
 			# Wait for a message from the server
 			try:
-				type, body = self.message.recv()
-			except:
+				got = self.message.recv()
+				print got
+				rq_type, body = got
+			except Exception as e:
+				print "The following error occured:", e
 				self.cleanup()
 				break
 
-			if type == msg._SERVER["ACK"] and not done_with_ack:
+			if rq_type == msg._MSGTYP["Ack"] and not done_with_ack:
 				self.message.sendAck()
 				done_with_ack = True
-			elif type == msg._SERVER["Name"]:
+			elif rq_type == msg._MSGTYP["Name"]:
 				self.message.sendName(self.name)
 				done_with_ack = False
-			elif type == msg._SERVER["Move"]:
+			elif rq_type == msg._MSGTYP["Move"]:
 				self.throw()
 				done_with_ack = False
-			elif type == msg._SERVER["OppMove"]:
+			elif rq_type == msg._MSGTYP["OppMove"]:
 				self.history.append(body)
 				self.message.sendAck()
 				done_with_ack = False
-			elif type == msg._SERVER["GameState"]:
+			elif rq_type == msg._MSGTYP["GameState"]:
 				self.gamestate = body
 				self.message.sendAck()
 				done_with_ack = False
-			elif type == msg._SERVER["Termination"]:
+			elif rq_type == msg._MSGTYP["Termination"]:
 				self.message.sendAck()
 				done_with_ack = False
 				self.cleanup()
@@ -82,7 +90,10 @@ class BotHelper:
 		self.message.sendMove(move)
 
 	def cleanup(self):
+		error_msg = ''
 		try:
 			self.server.close()
-		finally:
-			print "Connection with server terminated"
+		except:
+			pass
+
+		print "Connection with server terminated."

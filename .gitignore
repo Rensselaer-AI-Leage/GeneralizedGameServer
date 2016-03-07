@@ -1,10 +1,8 @@
 #Exclude pyc files
-client/*.pyc
-helpers/*.pyc
-host/*.pyc
-host/games/*.pyc
-/*.pyc
+*.pyc
+
 #Exclude batch files
-/run_bot.bat
-/run_server.bat
-/run_test.bat
+*.bat
+
+#Exclude log files
+*.log

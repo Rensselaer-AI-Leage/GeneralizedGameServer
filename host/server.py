@@ -1,6 +1,4 @@
 '''
-IMPORTANT: Do not use this, not ready or even functional yet
-
 TODO:
 	threading for multiple connections
 	bracket / round robin support
@@ -9,6 +7,9 @@ TODO:
 	unique names?
 
 	replace all sending and things with message.py's funcitons
+	replace all tuples with structs
+
+	write exception logging function to call whenever an exception is caught
 '''
 
 import sys
@@ -16,18 +17,19 @@ import time
 import random
 import socket
 import threading
+import datetime
 
-from helpers import config as cfg
-from helpers import message as msg
+from helpers import message
 
 # Mostly just a struct to hold player information
 class Player:
-	def __init__(self, token, name, address, connection):
+	def __init__(self, token, address, connection):
 		self.token = token
-		self.name = name
+		self.name = "Unknown Player"
 		self.address = address
 		self.connection = connection
-		self.in_game = False
+		self.msg = message.Message(connection, '', '')
+		self.in_game = True # Set to false when initialization is complete
 
 # Mostly just a struct to hold match information
 class Match:
@@ -42,8 +44,9 @@ class Server:
 	'''
 	@description Constructor, initializes data members and ensures correct usage.
 	@param game function(list<string>,list<connection>,string,dict,threading.Event) what game to run
+	@param settings dict<string, string> what settings to use for the server
 	'''
-	def __init__(self, game):
+	def __init__(self, game, settings):
 		self.players = []
 		# self.match_lock = threading.Mutex()
 		self.matches = dict()
@@ -52,7 +55,6 @@ class Server:
 		self.game = game
 
 		# Load settings from config file
-		settings = cfg.load("host/server.cfg")
 		self.ppm = int(settings["ppm"])
 		self.port = int(settings["port"])
 		self.address = settings["address"][:-1] #strip newline character
@@ -64,6 +66,15 @@ class Server:
 		self.max_games = int(settings["max_games"])
 		self.listen_queue = int(settings["listen_queue"])
 
+		# Error log
+		self.log_file = "logs/act/" + str(datetime.datetime.now()) + ".log"
+		self.err_file = "logs/err/" + str(datetime.datetime.now()) + ".log"
+		self.log_file = self.log_file.replace(':', '-')
+		self.err_file = self.err_file.replace(':', '-')
+		with open(self.log_file, 'w') as f:
+			f.write("Activity log for RAIL GGS:\n---------------------\n")
+		with open(self.err_file, 'w') as f:
+			f.write("Error log for RAIL GGS:\n---------------------\n")
 
 	'''
 	@description Prints a message to a log, in this case just the terminal.
@@ -72,8 +83,19 @@ class Server:
 	'''
 	def report(self, msg):
 		# This function is too complicated to properly comment
+		sys.stdout.flush()
 		print msg
+
+		with open(self.log_file, 'a') as f:
+			f.write(msg + '\n')
+
 		return msg
+
+	def handle_exception(self, e):
+		with open(self.log_file, 'a') as f:
+			f.write(str(e) + ': ')
+			f.write(sys.exc_info()[0] + '\n')
+		self.report("An exception has been raised: %s" % (e,))
 
 	'''
 	@description Attempts to send a message to one of the players. Logs failures.
@@ -82,7 +104,7 @@ class Server:
 	@param payload string data to be sent
 	@return int number of bytes sent or -1 on failure
 	'''
-	def send(self, receiver, type, payload):
+	def send(self, receiver, msg_type, msg_body):
 		'''
 		Types:
 			ID - player's token
@@ -100,16 +122,17 @@ class Server:
 			return -1
 
 		# Construct and send message
-		msg = "%s:%s" % (type, payload)
 		try:
-			size = receiver.connection.send(msg)
+			size = receiver.msg.send(msg_type, msg_body)
 
-			# Log
+			#Log
 			self.report("Sent %i bytes of data to %s" % (size, receiver.name))
 			return size
-		except:
+		except Exception as e:
 			# Log
-			self.report("Failed to send %i bytes of data to %s" % (len(msg), receiver.name))
+			size = len(msg_type) + len(msg_body) + 2
+			self.handle_exception(e)
+			self.report("Failed to send %i bytes of data to %s" % (size, receiver.name))
 
 		return -1 # An error occured, return -1
 
@@ -123,59 +146,61 @@ class Server:
 		results = []
 		threads = []
 
-		# Go through each player to poll
-		for info in recipient_infos:
+		# Replace the inner-workings of the for-loop with a closure to prevent scoping issues
+		def in_loop(msg_info):
 			res = []
 			results.append(res)
 
 			# Unpack info since res also needs to be passed
-			receiver, type, size = info
+			receiver, rq_type, size = msg_info
 
 			# Run polls on separte threads since they wait for input
-			ping_thread = threading.Thread(target=self.poll, args=(receiver, type, size, res))
-			ping_thread.start()
-			threads.append(ping_thread)
+			poll_thread = threading.Thread(target=self.poll, args=(receiver, rq_type, size, res))
+			poll_thread.start()
+			threads.append(poll_thread)
+
+		# Go through each player to poll
+		for info in recipient_infos:
+			in_loop(info)
 
 		# Wait for threads to complete (response received)
 		for thread in threads:
 			thread.join()
 
-		# Print reses # debug
-		# Return dict(zip([key[0] for key in reses], [val[1] for val in reses])) # this is better but whatever
-		return dict(reses)
+		print results # debug
+		# Return a dict of players to their response
+		return zip([key[0] for key in results], [val[1] for val in results])
+		#return dict(results)
 
 	'''
 	@description Sends a player a request for input, then waits for a response. Validates received data with a token.
-	@param type string what kind of request it is
+	@param sender Player which player is being polled
+	@param rq_type string what kind of request it is
 	@param size how long the data is expected to be (including headers and token)
-	@return string message received, None on failure
+	@param out tuple<Player, tuple<string, string> where to send the result
+	@return tuple<Player, tuple<string, string> tuple of sender and either the response received or None on failure
 	'''
-	def poll(self, sender, type, size, res=None):
+	def poll(self, sender, rq_type, size, out=None):
 		# TODO: timeout if no response received after 1 second
-		self.report("Sending request %s to %s, expected size %i" % (type, sender.name, size))
-		err = self.send(sender, type, "Requesting a response")
+		self.report("Sending request %s to %s, expected size %i" % (rq_type, sender.name, size))
+
+		err = self.send(sender, rq_type, "Requesting a response")
 
 		# If the request didn't get send, the connection is lost
 		if err == -1:
-			res = [sender, None]
-
-		# Wait for response
-		msg = sender.connection.recv(size)
-
-
-		# Get token out of the message
-		#  this will eventually be handled by message.py
-		parts = msg.split(':')
-
-		# If the token is invalide, return None, else return the response
-		if not len(parts) == 3 or not parts[1] == sender.token:
-				self.report("Recieved invalid response from %s: %s" % (sender.name, msg))
-				res = [sender, None]
+			out = (sender, None)
 		else:
-			res = [sender, parts[0] + ':' + parts[2]]
+			# Wait for response
+			try:
+				response = sender.msg.recv()
+				out = (sender, response)
+				print response
+			except Exception as e:
+				out = (sender, None)
+				self.handle_exception(e)
 
 		# Return the response
-		return res
+		return out
 
 	'''
 	@description Creates a player object from a connection, then sends that player's token over the connection.
@@ -186,19 +211,16 @@ class Server:
 	@effects appends a new player to self.players
 	@return Player player object created
 	'''
-	def init_player(self, name, address, connection):
+	def init_player(self, address, connection):
 		# Create unique (probably) token for player
-		token = msg.gen_token(64)
+		token = message.gen_token(64)
 
 		# Create player object, append to player deque
-		player = Player(token, name, address, connection)
+		player = Player(token, address, connection)
 		self.players.append(player)
 
-		# Log
-		self.report("New player %s joined from %s" % (name, address))
-
 		# Inform player of his token
-		self.send(player, 'ID', token)
+		#self.send(player, 'ID', token)
 
 		# Return player object
 		return player
@@ -320,7 +342,7 @@ class Server:
 					return scores
 
 			# Request moves from all players
-			tuples = [(player, 'RQ', 128) for player in active_players]
+			tuples = [(player, "MV", 128) for player in active_players]
 			moves = self.poll_all(tuples)
 
 			# Get results based on polled moves
@@ -362,14 +384,23 @@ class Server:
 				# Poll for connection, add them to player queue
 				connection, client_address = self.sock.accept()
 
-				# TODO: change this to use self.poll
-				name = connection.recv(1024)
+				# Create player object, append to self.players, inform player of his token
+				player = self.init_player(client_address, connection)
 
-				# Create player object, append to players deque, inform player of his token
-				self.init_player(name, client_address, connection)
+				try:
+					name = self.poll(player, "NM", 1024)
+					print name[1][1]
+					player.name = name[1][1]
+					self.report("New player %s connected from %s" % (player.name, player.address))
+				except Exception as e:
+					self.handle_exception(e)
+					self.report("Could not establish a player's connection.")
+					self.players.remove(player)
+					continue
 
-		finally:
-			self.cleanup()
+		except Exception as a:
+			self.handle_exception(e)
+		self.cleanup()
 
 	'''
 	@description Joins all threads. Closes all connections.

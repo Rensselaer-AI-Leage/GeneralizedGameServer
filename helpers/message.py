@@ -1,4 +1,5 @@
 import collections
+import random
 
 '''
 	Types:
@@ -14,22 +15,15 @@ import collections
 
 #replace constants with a config file?
 
-#Server requests to clients
-_SERVER =  {'ACK': 'AK',         # check if you're still alive,            proper response: Ack
+# Message types
+_MSGTYP =  {'Ack': 'AK',         # check if you're still alive,            proper response: Ack
 			'Token': 'ID',       # player's token,                         proper response: Ack
 			'GameState': 'GS',   # current gamestate after player moves,   proper response: Ack
 			'Result': 'CR',      # cumulative results,                     proper response: Ack
 			'Termination': 'TN', # notification of connection termination, proper response: Ack
 			'Move': 'MV',        # request for a move,                     proper response: Move
 			'Name': 'NM',        # request for your nickname,              proper response: Name
-			'OpMove': 'OM'       # notification of opponent's move,        proper response: Ack
-			}
-
-#client requests to server (unnecessary?)
-_CLIENT =  {'ACK': 'AK',        # make sure you're still alive, proper response: Ack
-			'Move': 'MV',       # send the server your move,    proper response: Move or Ack
-			'Name': 'NM',       # send the server your name,    proper response: Ack
-			'GameState': 'GS'   # request the gamestate,        proper response: GameState
+			'OpMove': 'OM',      # notification of opponent's move,        proper response: Ack
 			}
 
 _MSG_LEN = 1024
@@ -37,12 +31,13 @@ _MAC_LEN = 256
 _NON_LEN = 64
 _CYP_LEN = _MSG_LEN + _MAC_LEN
 
-def encode(*tup):
-	#tup usually looks like this: (type, body, token)
-	return (('%s:' * len(tup))[:-1] % tup).ljust(_MSG_LEN)
+def encode(msg_type, body, token=""):
+	encoded = "%s:%s:%s" % (msg_type, body, token)
+	return encoded
 
 def decode(string):
-	return tuple(string.strip().split(':'))
+	decoded = string.split(':')
+	return decoded
 
 def encrypt(key, string):
 	return string
@@ -56,7 +51,7 @@ def MAC(key, string):
 def vrfy(key, string, mac):
 	return MAC(key, string) == mac
 
-#the best of compression algorithms
+# The best of compression algorithms
 comp = '''
 def compress(str):
 	return str
@@ -64,22 +59,21 @@ def compress(str):
 exec comp
 exec comp.replace('com', 'decom')
 
-
 '''
 @description Generates a random string.
 @param len integer length of the token to be generated
 @return string random token of length len
 '''
 def gen_token(length):
-	#token can be made up of majiscules, miniscules, and integers
+	# Token can be made up of majiscules, miniscules, integers, and various special characters
 	token = ''
-	alphabet = list('qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890+_()!@#$%^&*{}[]|<>,.?/~`')
+	alphabet = list('qwertyuiopasdfghjklzxcvbnmQWERTYUIOPASDFGHJKLZXCVBNM1234567890+_()!@#$%^&*[]|<>,.?/~`')
 
-	#generate token
+	# Generate token, just assume it will be unique
 	for i in range(length):
 		token += random.choice(alphabet)
 
-	#most important part
+	# Most important part
 	return token
 
 class Message:
@@ -91,7 +85,23 @@ class Message:
 		self.lastMsgs = collections.deque([])
 		#self.lastNonce = collections.deque([])
 
-	def send(self, *tup):
+	def send(self, msg_type, msg_body):
+		msg = encode(msg_type, msg_body)
+		#try:
+		return self.connection.send(msg)
+		#except:
+		#	# There was a problem communicating with server
+		#	return None
+
+	def recv(self):
+		#try:
+		msg = self.connection.recv(1024)
+		#except:
+		#	# There was a problem communicating with server
+		#	return None
+		return decode(msg)[:-1] # ignore token
+
+	def send_complicated(self, *tup):
 		#TODO: fix nonces
 		if(len(self.lastMsgs) == 0):
 			nonce = gen_token(_NON_LEN)
@@ -106,7 +116,7 @@ class Message:
 		self.msgNum += 1
 		return self.connection.send(cyp)
 
-	def recv(self):
+	def recv_complicated(self):
 		#TODO: fix nonces
 		cyp = self.connection.recv(_CYP_LEN)
 		data = decrypt(self.ekey, cyp)
@@ -132,17 +142,17 @@ class Message:
 	def sendID(self, ident):
 		pass
 
-	def sendACK(self):
-		self.send(_SERVER['Ack'])
+	def sendAck(self):
+		self.send(_MSGTYP['Ack'], "ACK")
 
 	def sendMove(self, move):
-		pass
+		self.send(_MSGTYP['Move'], move)
 
 	def sendRequest(self, request):
 		self.sendMove(self, request)
 
 	def sendName(self, name):
-		pass
+		self.send(_MSGTYP['Name'], name)
 
 	def sendResults(self, results):
 		pass
