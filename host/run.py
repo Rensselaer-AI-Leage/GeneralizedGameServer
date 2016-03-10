@@ -17,9 +17,10 @@ if __name__ == "__main__":
 		try:
 			# Import the library as RAIL
 			RAIL = importlib.import_module(mod_name)
-		except:
+		except Exception as e:
 			# Module doesn't exist, terminate
 			print "Error importing module: %s" % (mod_name)
+			print e
 			sys.exit(1)
 
 	# Get the proper config file based on game

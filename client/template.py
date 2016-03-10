@@ -7,7 +7,7 @@ import random
 
 from bot_helper import *
 
-_TEAM_NAME = "YourName_" + str(random.randrange(10)) # Note: change this to your team's name
+_TEAM_NAME = "YourName_" + str(random.randrange(1000)) # Note: change this to your team's name
 
 ################################################################################
 
@@ -17,10 +17,14 @@ _TEAM_NAME = "YourName_" + str(random.randrange(10)) # Note: change this to your
 @return string your move, 'R', 'P', or 'S'
 '''
 def strategy(history=None):
+	# Extract moves from history
+	if history is not None:
+		history = [move.split(';')[1] for move in history]
 	#YOUR CODE HERE#
 	#
 
 	return random.choice(list('rps'))
+
 	# ... or just use a random strategy, if you're lame...
 
 	#

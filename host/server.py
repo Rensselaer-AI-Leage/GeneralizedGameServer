@@ -28,11 +28,18 @@ from helpers import message
 class Player:
 	def __init__(self, token, address, connection):
 		self.token = token
-		self.name = "Unknown Player"
+		self.name = None
 		self.address = address
 		self.connection = connection
 		self.msg = message.Message(connection, '', '')
-		self.in_game = True # Set to false when initialization is complete
+		self.in_game = False # Set to false when initialization is complete
+		self.timed_out = False
+
+	def is_ready(self):
+		return self.name is not None and not self.in_game and not self.timed_out
+
+	def timeout(self):
+		self.timed_out = True
 
 # Mostly just a struct to hold match information
 class Match:
@@ -70,14 +77,16 @@ class Server:
 		self.listen_queue = int(settings["listen_queue"])
 
 		# Error log
-		self.log_file = "logs/act/" + str(datetime.datetime.now()) + ".log"
-		self.err_file = "logs/err/" + str(datetime.datetime.now()) + ".log"
-		self.log_file = self.log_file.replace(':', '-')
-		self.err_file = self.err_file.replace(':', '-')
+		fname = str(datetime.datetime.now()).replace(':', '-') + ".log"
+		self.log_file = "logs/act/" + fname
+		self.err_file = "logs/err/" + fname
+		self.res_file = "logs/res/" + fname
 		with open(self.log_file, 'w') as f:
 			f.write("Activity log for RAIL GGS:\n---------------------\n")
 		with open(self.err_file, 'w') as f:
 			f.write("Error log for RAIL GGS:\n---------------------\n")
+		with open(self.err_file, 'w') as f:
+			f.write("Results log for RAIL GGS:\n---------------------\n")
 
 	'''
 	@description Prints a message to a log, in this case just the terminal.
@@ -94,11 +103,36 @@ class Server:
 
 		return msg
 
-	def handle_exception(self, e):
-		with open(self.log_file, 'a') as f:
-			f.write(str(e) + ': ')
-			f.write(sys.exc_info()[0] + '\n')
+	'''
+	@description Prints a message to a log.
+	@param msg string what message to print
+	@return string the passed message
+	'''
+	def log(self, msg):
+		return self.report(msg)
+
+	'''
+	@description Prints a error to a log.
+	@param e Exception the exception being logged
+	@return Exception the exception passed as an arg
+	'''
+	def log_error(self, e):
+		with open(self.err_file, 'a') as f:
+			f.write(str(e))
+			f.write('\n')
 		self.report("An exception has been raised: %s" % (e,))
+		return e
+
+	'''
+	@description Prints results of a match to a log.
+	@param results string what the results were
+	@return string the passed results
+	'''
+	def log_result(self, results):
+		with open(self.res_file, 'a') as f:
+			f.write(results)
+			f.write('\n')
+		return self.report(results)
 
 	'''
 	@description Attempts to send a message to one of the players. Logs failures.
@@ -134,44 +168,46 @@ class Server:
 		except Exception as e:
 			# Log
 			size = len(msg_type) + len(msg_body) + 2
-			self.handle_exception(e)
+			self.log_error(e)
 			self.report("Failed to send %i bytes of data to %s" % (size, receiver.name))
 
 		return -1 # An error occured, return -1
 
 	'''
 	@description Multithreaded poll for multiple recipients
-	@param recipient_infos list<tuple(Player, string, int)> information about who is receiving the poll and what kind of poll it is
+	@param recipient_infos list<tuple(Player, string, string)> information about who is receiving the poll and what kind of poll it is
 	@return dict of players to poll results
 	'''
 	def poll_all(self, recipient_infos):
-		# Recipient_info entries are of form: (player, type, size)
+		# Recipient_info entries are of form: (player, type, body)
 		results = dict()
 		threads = dict()
 
-		# For each recipient, make an asyncronous process to handle their response
+		# For each recipient, make an asynchronous process to handle their response
 		num_reqs = len(recipient_infos)
 		pool = ThreadPool(processes=num_reqs)
 		for info in recipient_infos:
 			# Unpack poll() args
 			receiver = info[0]
 			rq_type  = info[1]
-			size     = info[2]
+			body     = info[2]
 
 			# Run each poll on a separate thread
-			threads[receiver] = pool.apply_async(self.poll, (receiver, rq_type, size,))
-			# Get the results, store them in a dict
+			threads[receiver] = pool.apply_async(self.poll, (receiver, rq_type, body,))
 
-		# Seems like it defeats the purpose of polling asyncronously, but it doesn't (brain teaser?)
+		# Get the results, store them in a dict
+		# Seems like it defeats the purpose of polling asynchronously, but it doesn't (brain teaser?)
 		for info in recipient_infos:
 			receiver = info[0]
 			results[receiver] = threads[receiver].get()
+			#threads[receiver].join() #
 
-		print results # debug
+		# Clean up those threads
+		pool.close()
+		pool.join()
 
-		# Return a dict of players to their response
-		#  Note: there is some redundant information here, don't worry about it
-		return zip([key[0] for key in results.iteritems()], [val[1] for val in results.iteritems()])
+		# Return the dict
+		return results
 
 	'''
 	@description Sends a player a request for input, then waits for a response. Validates received data with a token.
@@ -181,10 +217,10 @@ class Server:
 	@param out tuple<Player, tuple<string, string> where to send the result
 	@return tuple<Player, tuple<string, string> tuple of sender and either the response received or None on failure
 	'''
-	def poll(self, sender, rq_type, size):
+	def poll(self, sender, rq_type, body):
 		# TODO: timeout if no response received after 1 second
-		self.report("Sending request %s to %s, expected size %i" % (rq_type, sender.name, size))
-		err = self.send(sender, rq_type, "Requesting a response")
+		self.report("Sending request %s to %s: %s" % (rq_type, sender.name, body))
+		err = self.send(sender, rq_type, body)
 
 		# If the request didn't get send, the connection is lost
 		if err == -1:
@@ -193,10 +229,15 @@ class Server:
 			# Wait for response
 			try:
 				response = sender.msg.recv()
+				if response[1] is not None:
+					response_msg = response[1][0]
+				else:
+					response_msg = "None"
+				self.report("Received response %s from %s" % (response_msg, sender.name))
 				out = (sender, response)
 			except Exception as e:
 				out = (sender, None)
-				self.handle_exception(e)
+				self.log_error(e)
 
 		# Return the response
 		return out
@@ -218,8 +259,7 @@ class Server:
 		player = Player(token, address, connection)
 		self.players.append(player)
 
-		# Inform player of his token
-		#self.send(player, 'ID', token) # This might get replaced if message handles tokens
+		# TODO: get token from player's message object
 
 		# Return player object
 		return player
@@ -231,12 +271,16 @@ class Server:
 	'''
 	def init(self):
 		# Create socket
-		self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-		server_address = (self.address, self.port)
-		self.sock.bind(server_address)
+		try:
+			self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+			server_address = (self.address, self.port)
+			self.sock.bind(server_address)
 
-		# Start looking for connections
-		self.sock.listen(self.listen_queue)
+			# Start looking for connections
+			self.sock.listen(self.listen_queue)
+		except Exception as e:
+			self.log_error(e)
+			self.alive.clear()
 
 	'''
 	@description Take a pool of players and create a groups
@@ -261,7 +305,7 @@ class Server:
 		new_playerlist = []
 
 		# Ping players with ACK to mae sure the connection is still valid
-		tuples = [(player, 'AK', 128) for player in self.players]
+		tuples = [(player, "AK", "ACK") for player in self.players]
 		reses = self.poll_all(tuples)
 
 		# Get a list of all players who are in a game
@@ -287,18 +331,19 @@ class Server:
 				self.prune_players()
 
 			# Get a list of all players who are in a game
-			in_queue = [player for player in self.players if not player.in_game] # TODO: replace with self.in_queue
-			if len(in_queue) > ppm: # Enough players to start a match
+			in_queue = [player for player in self.players if player.is_ready()] # TODO: replace with self.in_queue
+			#print in_queue
+			if len(in_queue) >= ppm: # Enough players to start a match
 
 				# Matchmake players
-				playing_players = pairing_method(in_queue)
+				playing_players = pairing_method(in_queue, ppm)
 
 				# Generate unique key to identify match
-				uniqid = msg.gen_token(64)
+				uniqid = message.gen_token(64)
 				self.matches[uniqid] = []
 
 				# Set timeouts
-				# !IMPORTANT: game is in charge of reverting these values
+				# !IMPORTANT: self.match is in charge of reverting these values
 				for player in playing_players:
 					player.connection.settimeout(timeout)
 					player.in_game = True
@@ -312,6 +357,7 @@ class Server:
 			time.sleep(self.sleep)
 
 	'''
+	TODO: fix this documentation
 	@description
 	@param active_players list<Player> list of players in the game
 	@param min_games int minimum number of games to play in the match (replace with config?)
@@ -319,50 +365,96 @@ class Server:
 	@param win_by int minimum number of games first place player must win by (replace with config?)
 	@param game_logic function(*moves) function to run the actual game logic
 	@return list<tuple(Player, score)> list of tuples of players and their scores after the match
+	TODO: break up this function
 	'''
 	def match(self, active_players, match_id):
-		self.log("Starting a new match between %s and %s" % (active_players[0].name, active_players[1].name) #TODO: work with multipla players
+		# Get the names of all players, used for logging
+		names = ''
+		for i, player in enumerate(active_players):
+			if i+1 == len(active_players): # If this is the last player, slap an "and" in there
+				names += "and " + player.name
+			else:
+				names += player.name + ", "
 
-		# Initiate score to zero
-		scores = [(player, 0) for player in active_players]
+		# Inform all players that they have started a match
+		tuples = [(player, "NT", "What is your move?", "Starting a new match between %s" % (names)) for player in active_players]
+		responses = self.poll_all(tuples)
 
-		# Play games until max_games have been played
+		self.log("Starting a new match between %s" % (names))
+
+		scores = dict()
+		for player in active_players:
+			scores[player] = 0
+
 		games = 0
 		while games < self.max_games:
-			# Only check for a win if at least min_games have been played
 			if games >= self.min_games:
-				# Check how much first place is winning by
+				# Check if someone has yet won by win_by yet
+				#  Note: we don't need to keep track of players, but it might be urgent later so we do so anyway (we did that on purpose)
+				first = (None, 0)
+				second = (None, 0)
+				for player in scores:
+					score = scores[player]
+					if score > first[1]:
+						second, first = first, (player, score)
+					elif score > second[1]:
+						second = (player, score)
 
-				# Get two highest scores
-				scores.sort(key=lambda x: x[1])
-				first_place, second_place = score[:2]
-
-				# Check if the difference between the first two highest scores is at least win_by
-				diff = first_place[1] - second_place[1]
-				if diff >= self.win_by:
-					# All criteria has been met to end the game
-					return scores
+				if first[1] - second[1] >= self.win_by:
+					# Yay, we're done!
+					break
 
 			# Request moves from all players
-			tuples = [(player, "MV", 128) for player in active_players]
-			moves = self.poll_all(tuples)
+			tuples = [(player, "MV", "What is your move?") for player in active_players]
+			responses = self.poll_all(tuples)
 
-			# Get results based on polled moves
-			results = self.game(*moves)
+			# Responses is a dict<Players, tuple<Player, tuple<Type of response(MV), move>>
+			moves = dict()
+			for response in responses:
+				# Track moves
+				msg = responses[response]
 
-			# One more game has been played
+				# Get the move
+				if not msg[1]: # 't' is reserved as a timeout signal
+					mv = 't'
+					response.timeout()
+				else:
+					mv = msg[1][1]
+
+				moves[response] = mv
+
+				# Let other players know about this move
+				players_to_inform = [player for player in active_players if not player is response]
+				tuples = [(player, "OM", "%s;%s" % (response.name, mv)) for player in players_to_inform]
+				self.poll_all(tuples)
+
+			# Run the actual game
+			results = self.game(moves)
+
+			# Game has been played
 			games += 1
 
-			# Update scores based on game logic
-			#  This would be better if score was a dict, but then getting high scores would be worse
-			for res in results:
-				for score in scores:
-					if res[0] == score[0]:
-						score[1] += res[1]
-						break
+			# Parse results
+			if not results:
+				return None # We'll handle that later
+			else:
+				for player in results:
+					result = results[player]
+					scores[player] += result
 
-		# We are done, return score
-		return score
+		scores_str = ""
+		for score in scores:
+			scores_str += "[%s: %s] " % (score.name, str(scores[score]))
+
+		self.log_result("Match ended between %s. Results: %s" % (names, scores_str))
+
+		for player in active_players:
+			# Inform the player of the result
+			#//
+			# Free the players so they can compete once more
+			player.in_game = False
+			player.connection.settimeout(0)
+		return scores
 
 	'''
 	@description Starts the server proper.
@@ -390,18 +482,17 @@ class Server:
 				player = self.init_player(client_address, connection)
 
 				try:
-					name = self.poll(player, "NM", 1024)
-					print name[1][1]
+					name = self.poll(player, "NM", "What is your name?")
 					player.name = name[1][1]
 					self.report("New player %s connected from %s" % (player.name, player.address))
 				except Exception as e:
-					self.handle_exception(e)
+					self.log_error(e)
 					self.report("Could not establish a player's connection.")
 					self.players.remove(player)
 					continue
 
-		except Exception as a:
-			self.handle_exception(e)
+		except Exception as e:
+			self.log_error(e)
 		self.cleanup()
 
 	'''

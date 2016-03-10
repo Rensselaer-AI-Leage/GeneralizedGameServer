@@ -19,13 +19,14 @@ import random
 
 # Message types
 _MSGTYP =  {'Ack': 'AK',         # check if you're still alive,            proper response: Ack
-			'Token': 'ID',       # player's token,                         proper response: Ack
-			'GameState': 'GS',   # current gamestate after player moves,   proper response: Ack
-			'Result': 'CR',      # cumulative results,                     proper response: Ack
+			'Token': 'ID',       # player's token,                         proper response: None
+			'GameState': 'GS',   # current gamestate after player moves,   proper response: None
+			'Result': 'CR',      # cumulative results,                     proper response: None
 			'Termination': 'TN', # notification of connection termination, proper response: Ack
 			'Move': 'MV',        # request for a move,                     proper response: Move
 			'Name': 'NM',        # request for your nickname,              proper response: Name
-			'OpMove': 'OM',      # notification of opponent's move,        proper response: Ack
+			'OppMove': 'OM',      # notification of opponent's move,        proper response: None
+			'Note': 'NT'         # other notification                      proper response: None
 			}
 
 _MSG_LEN = 1024
@@ -89,18 +90,10 @@ class Message:
 
 	def send(self, msg_type, msg_body):
 		msg = encode(msg_type, msg_body)
-		#try:
 		return self.connection.send(msg)
-		#except:
-		#	# There was a problem communicating with server
-		#	return None
 
 	def recv(self):
-		#try:
 		msg = self.connection.recv(1024)
-		#except:
-		#	# There was a problem communicating with server
-		#	return None
 		return decode(msg)[:-1] # ignore token
 
 	def send_complicated(self, *tup):
@@ -111,6 +104,7 @@ class Message:
 			nonce = self.lastMsgs[0][2]
 		tup += (nonce)
 		msg = compress(encode(*tup))
+		# TODO: have to encrypt then mac, we'll fix this later
 		mac = MAC(self.vkey, msg)
 		data = msg + mac
 		cyp = encrypt(self.ekey,  data)
@@ -121,6 +115,7 @@ class Message:
 	def recv_complicated(self):
 		#TODO: fix nonces
 		cyp = self.connection.recv(_CYP_LEN)
+		# TODO: need to vrfy before decrypt
 		data = decrypt(self.ekey, cyp)
 		msg = data[:_MSG_LEN]
 		mac = data[:-_MAC_LEN]

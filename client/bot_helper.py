@@ -35,11 +35,20 @@ class BotHelper:
 		self.gamestate = None
 
 		# Connect to the server
-		try:
-			self.server.connect(server_info)
-		except:
-			print "Could not connect to the server. Terminating."
+		connected = False
 
+		# Attempt to connect 10 times. If it fails all 10, give up.
+		for i in range(1, 11):
+			try:
+				self.server.connect(server_info)
+				connected = True
+				break
+			except:
+				print "Could not connect to the server (attempt #%d). Trying again." % i
+
+		if not connected:
+			print "Could not connect to the server, it might be down or super busy."
+			return
 
 		# Start waiting for server requests
 		self.run()
@@ -57,7 +66,6 @@ class BotHelper:
 				print "The following error occured:", e
 				self.cleanup()
 				break
-
 			if rq_type == msg._MSGTYP["Ack"] and not done_with_ack:
 				self.message.sendAck()
 				done_with_ack = True
@@ -72,6 +80,10 @@ class BotHelper:
 				self.message.sendAck()
 				done_with_ack = False
 			elif rq_type == msg._MSGTYP["GameState"]:
+				self.gamestate = body
+				self.message.sendAck()
+				done_with_ack = False
+			elif rq_type == msg._MSGTYP["Note"]:
 				self.gamestate = body
 				self.message.sendAck()
 				done_with_ack = False
