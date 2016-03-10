@@ -12,6 +12,8 @@ TODO:
 	write exception logging function to call whenever an exception is caught
 
 	redo poll() and poll_all() so they aren't spaghetti
+
+	create program for easily traversing logs
 '''
 import os
 import sys
@@ -90,6 +92,7 @@ class Server:
 		with open(self.err_file, 'w') as f:
 			f.write("Results log for RAIL GGS:\n---------------------\n")
 
+	# TODO: Implement locks on files since everything is asynchronous
 	'''
 	@description Prints a message to a log, in this case just the terminal.
 	@param msg string what message to print
