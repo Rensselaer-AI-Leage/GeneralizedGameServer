@@ -34,9 +34,9 @@ def strategy(history=None):
 		last_mv = history[-1]
 		if last_mv == 'r':
 			return 's'
-		elif last_mv = 'p':
+		elif last_mv == 'p':
 			return 'r'
-		elif lasst_mv = 's':
+		elif last_mv == 's':
 			return 'p'
 
 	#
