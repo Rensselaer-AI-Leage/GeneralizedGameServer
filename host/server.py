@@ -347,7 +347,7 @@ class Server:
 			# Get a list of all players who are in a game
 			in_queue = [player for player in self.players if player.is_ready()] # TODO: replace with self.in_queue
 			#print in_queue
-			if len(in_queue) >= ppm: # Enough players to start a match
+			if len(in_queue) >= ppm + 1: # Enough players to start a match plus one to advoid repairings after a match
 
 				# Matchmake players
 				playing_players = pairing_method(in_queue, ppm)
