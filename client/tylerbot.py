@@ -7,7 +7,7 @@ import random
 
 from bot_helper import *
 
-_TEAM_NAME = "YourName_" + str(random.randrange(1000)) # Note: change this to your team's name
+_TEAM_NAME = "Tyler" + str(random.randrange(1000)) # Note: change this to your team's name
 
 ################################################################################
 
@@ -24,9 +24,20 @@ def strategy(history=None):
 	#YOUR CODE HERE#
 	#
 
-	return random.choice(list('rps'))
+	# There is approximately a 20% chance that it throws a random move
+	if random.randrange(100) > random.randrange(20) or not history:
+		return random.choice(list('rps'))
 
-	# ... or just use a random strategy, if you're lame...
+	# Otherwise do whatever their last move beats
+	#  Note: this strategy is really bad if they decide to always throw the same thing
+	else:
+		last_mv = history[-1]
+		if last_mv == 'r':
+			return 's'
+		elif last_mv = 'p':
+			return 'r'
+		elif lasst_mv = 's':
+			return 'p'
 
 	#
 	#END YOUR CODE#
