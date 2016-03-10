@@ -20,6 +20,7 @@ def strategy(history=None):
 	# Extract moves from history
 	if history is not None:
 		history = [move.split(';')[1] for move in history]
+		
 	#YOUR CODE HERE#
 	#
 
