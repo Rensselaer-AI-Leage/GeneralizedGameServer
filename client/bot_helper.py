@@ -84,7 +84,7 @@ class BotHelper:
 				self.message.sendAck()
 				done_with_ack = False
 			elif rq_type == msg._MSGTYP["Note"]:
-				self.gamestate = body
+				print "Message from server: %s" % body
 				self.message.sendAck()
 				done_with_ack = False
 			elif rq_type == msg._MSGTYP["Termination"]:

@@ -307,7 +307,7 @@ class Server:
 		new_playerlist = []
 
 		# Ping players with ACK to mae sure the connection is still valid
-		tuples = [(player, "AK", "ACK") for player in self.players]
+		tuples = [(player, message._MSGTYP["Ack"], "ACK") for player in self.players]
 		reses = self.poll_all(tuples)
 
 		# Get a list of all players who are in a game
@@ -381,11 +381,12 @@ class Server:
 
 
 		# Inform all players that they have started a match
-		tuples = [(player, "NT", "What is your move?", "Starting a new match between %s" % (names)) for player in active_players]
+		tuples = [(player, message._MSGTYP["Note"], "Starting a new match between %s" % (names)) for player in active_players]
 		responses = self.poll_all(tuples)
 
 		self.log("Starting a new match between %s" % (names))
 
+		# Initialize all scores to zero
 		scores = dict()
 		for player in active_players:
 			scores[player] = 0
@@ -409,7 +410,7 @@ class Server:
 					break
 
 			# Request moves from all players
-			tuples = [(player, "MV", "What is your move?") for player in active_players]
+			tuples = [(player, message._MSGTYP["Move"], "What is your move?") for player in active_players]
 			responses = self.poll_all(tuples)
 
 			# Responses is a dict<Players, tuple<Player, tuple<Type of response(MV), move>>
@@ -429,7 +430,7 @@ class Server:
 
 				# Let other players know about this move
 				players_to_inform = [player for player in active_players if not player is response]
-				tuples = [(player, "OM", "%s;%s" % (response.name, mv)) for player in players_to_inform]
+				tuples = [(player, message._MSGTYP["OppMove"], "%s;%s" % (response.name, mv)) for player in players_to_inform]
 				self.poll_all(tuples)
 
 			# Run the actual game
@@ -448,13 +449,14 @@ class Server:
 
 		scores_str = ""
 		for score in scores:
-			scores_str += "[%s: %s] " % (score.name, str(scores[score]))
+			scores_str += "[%s, %s] " % (score.name, str(scores[score]))
 
 		self.log_result("Match ended between %s. Results: %s" % (names, scores_str))
 
+		# Inform the player of the result
+		tuples = [(player, message._MSGTYP["Note"], "Match ended between %s. Results - %s" % (names, scores_str)) for player in active_players]
+		responses = self.poll_all(tuples)
 		for player in active_players:
-			# Inform the player of the result
-			#//
 			# Free the players so they can compete once more
 			player.in_game = False
 			player.connection.settimeout(0)
@@ -486,7 +488,7 @@ class Server:
 				player = self.init_player(client_address, connection)
 
 				try:
-					name = self.poll(player, "NM", "What is your name?")
+					name = self.poll(player, message._MSGTYP["Name"], "What is your name?")
 					player.name = name[1][1]
 					self.report("New player %s connected from %s" % (player.name, player.address))
 				except Exception as e:
@@ -516,7 +518,7 @@ class Server:
 		# Clean up sockets
 		self.report("Terminating active connections...")
 		for player in self.players:
-			self.send(player, "TN", "You don't have to go home, but you can't stay here")
+			self.send(player, message._MSGTYP["Termination"], "You don't have to go home, but you can't stay here")
 			player.connection.close()
 		self.report("Active connections terminated")
 
