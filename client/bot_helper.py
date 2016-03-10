@@ -85,6 +85,7 @@ class BotHelper:
 				done_with_ack = False
 			elif rq_type == msg._MSGTYP["Note"]:
 				print "Message from server: %s" % body
+				self.history = []          # reset history between matches
 				self.message.sendAck()
 				done_with_ack = False
 			elif rq_type == msg._MSGTYP["Termination"]:
