@@ -97,7 +97,9 @@ class BotHelper:
 				continue # Unknown command, ignore
 
 	def throw(self):
-		move = self.strategy(self.history).lower()
+		move = self.strategy(self.history)
+		if move is not None:
+			move = move.lower()
 		self.message.sendMove(move)
 
 	def cleanup(self):

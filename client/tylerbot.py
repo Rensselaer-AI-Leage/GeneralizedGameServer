@@ -25,7 +25,7 @@ def strategy(history=None):
 	#
 
 	# There is approximately a 20% chance that it throws a random move
-	if random.randrange(100) > random.randrange(20) or not history:
+	if random.randrange(100) < random.randrange(20) or not history:
 		return random.choice(list('rps'))
 
 	# Otherwise do whatever their last move beats
