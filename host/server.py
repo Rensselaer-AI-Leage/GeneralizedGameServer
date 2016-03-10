@@ -78,6 +78,9 @@ class Server:
 		self.min_games = int(settings["min_games"])
 		self.max_games = int(settings["max_games"])
 		self.listen_queue = int(settings["listen_queue"])
+		self.verbose = int(settings["verbose"])
+
+		self.now = lambda: str(datetime.datetime.now())
 
 		# Error log
 		fname = str(datetime.datetime.now()).replace(':', '-') + ".log"
@@ -101,9 +104,10 @@ class Server:
 	def report(self, msg):
 		# This function is too complicated to properly comment
 		sys.stdout.flush()
-		print msg
 
+		now = str(datetime.datetime.now())
 		with open(self.log_file, 'a') as f:
+			f.write(self.now() + ':\t')
 			f.write(msg + '\n')
 
 		return msg
@@ -113,8 +117,12 @@ class Server:
 	@param msg string what message to print
 	@return string the passed message
 	'''
-	def log(self, msg):
-		return self.report(msg)
+	def log(self, msg, log_level=0):
+		if log_level <= self.verbose:
+			print msg
+			return self.report(msg)
+		else:
+			return msg # This is pythonic
 
 	'''
 	@description Prints a error to a log.
@@ -123,9 +131,9 @@ class Server:
 	'''
 	def log_error(self, e):
 		with open(self.err_file, 'a') as f:
-			f.write(str(e))
-			f.write('\n')
-		self.report("An exception has been raised: %s" % (e,))
+			f.write(self.now() + ':\t')
+			f.write(str(e) + ('\n'))
+		#self.report("An exception has been raised: %s" % (e,))
 		return e
 
 	'''
@@ -135,9 +143,10 @@ class Server:
 	'''
 	def log_result(self, results):
 		with open(self.res_file, 'a') as f:
-			f.write(results)
-			f.write('\n')
-		return self.report(results)
+			f.write(self.now() + ':\t')
+			f.write(results + '\n')
+		return self.log(results, 2)
+		#return results
 
 	'''
 	@description Attempts to send a message to one of the players. Logs failures.
@@ -168,13 +177,13 @@ class Server:
 			size = receiver.msg.send(msg_type, msg_body)
 
 			#Log
-			self.report("Sent %i bytes of data to %s" % (size, receiver.name))
+			self.log("Sent %i bytes of data to %s" % (size, receiver.name), 10)
 			return size
 		except Exception as e:
 			# Log
 			size = len(msg_type) + len(msg_body) + 2
 			self.log_error(e)
-			self.report("Failed to send %i bytes of data to %s" % (size, receiver.name))
+			self.log("Failed to send %i bytes of data to %s" % (size, receiver.name), 9)
 
 		return -1 # An error occured, return -1
 
@@ -224,7 +233,7 @@ class Server:
 	'''
 	def poll(self, sender, rq_type, body):
 		# TODO: timeout if no response received after 1 second
-		self.report("Sending request %s to %s: %s" % (rq_type, sender.name, body))
+		self.log("Sending request %s to %s: %s" % (rq_type, sender.name, body), 10)
 		err = self.send(sender, rq_type, body)
 
 		# If the request didn't get send, the connection is lost
@@ -238,7 +247,7 @@ class Server:
 					response_msg = response[1][0]
 				else:
 					response_msg = "None"
-				self.report("Received response %s from %s" % (response_msg, sender.name))
+				self.log("Received response %s from %s" % (response_msg, sender.name), 10)
 				out = (sender, response)
 			except Exception as e:
 				out = (sender, None)
@@ -380,8 +389,6 @@ class Server:
 				names += "and " + player.name
 			else:
 				names += player.name + ", "
-		self.log("Starting a new match between %s and %s" % (active_players[0].name, active_players[1].name)) #TODO: work with multipla players
-
 
 		# Inform all players that they have started a match
 		tuples = [(player, message._MSGTYP["Note"], "Starting a new match between %s" % (names)) for player in active_players]
@@ -480,7 +487,7 @@ class Server:
 			self.threads.append(match_maker)
 
 			# Log
-			self.report("Server started on port: " + str(self.port))
+			self.log("Server started on port: " + str(self.port), 0)
 
 			# TODO: threading for 2 connections
 			while self.alive.isSet():
@@ -493,10 +500,10 @@ class Server:
 				try:
 					name = self.poll(player, message._MSGTYP["Name"], "What is your name?")
 					player.name = name[1][1]
-					self.report("New player %s connected from %s" % (player.name, player.address))
+					self.log("New player %s connected from %s" % (player.name, player.address), 1)
 				except Exception as e:
 					self.log_error(e)
-					self.report("Could not establish a player's connection.")
+					self.log("Could not establish a player's connection.", 1)
 					self.players.remove(player)
 					continue
 
@@ -511,19 +518,19 @@ class Server:
 	'''
 	def cleanup(self):
 		# Clean up threads
-		self.report("Attempting to close threads...")
+		self.log("Attempting to close threads...", 10)
 		self.alive.clear() # Unset alive, this informs the class that no more server actions should take place
 		for thread in self.threads:
 			thread.join()
 		threads = []
-		self.report("Threads successfully closed")
+		self.log("Threads successfully closed", 10)
 
 		# Clean up sockets
-		self.report("Terminating active connections...")
+		self.log("Terminating active connections...", 10)
 		for player in self.players:
 			self.send(player, message._MSGTYP["Termination"], "You don't have to go home, but you can't stay here")
 			player.connection.close()
-		self.report("Active connections terminated")
+		self.log("Active connections terminated", 10)
 
 
 '''
