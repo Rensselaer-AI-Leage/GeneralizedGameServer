@@ -370,7 +370,6 @@ class Server:
 	TODO: break up this function
 	'''
 	def match(self, active_players, match_id):
-<<<<<<< HEAD
 		# Get the names of all players, used for logging
 		names = ''
 		for i, player in enumerate(active_players):
@@ -378,9 +377,8 @@ class Server:
 				names += "and " + player.name
 			else:
 				names += player.name + ", "
-=======
 		self.log("Starting a new match between %s and %s" % (active_players[0].name, active_players[1].name)) #TODO: work with multipla players
->>>>>>> cbe7de03db901e6f63d1ada588eae7396e00dfe7
+
 
 		# Inform all players that they have started a match
 		tuples = [(player, "NT", "What is your move?", "Starting a new match between %s" % (names)) for player in active_players]

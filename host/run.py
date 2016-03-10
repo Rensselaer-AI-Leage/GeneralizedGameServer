@@ -1,5 +1,4 @@
 import importlib
-import os
 import sys
 
 from server import *
@@ -25,7 +24,7 @@ if __name__ == "__main__":
 			sys.exit(1)
 
 	# Get the proper config file based on game
-	cfg_file = os.path.join('..', 'host', 'games', '%s.cfg' % sys.argv[1])
+	cfg_file = "host/games/%s.cfg" % sys.argv[1]
 	settings = cfg.load(cfg_file)
 
 	# Could not load config file, probably it doesn't exist
