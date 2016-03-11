@@ -68,7 +68,7 @@ class Server:
 		self.alive = threading.Event() # Set in run_match
 		self.game = game
 		#self.scoring = game.scoring
-		
+
 		# Load settings from config file
 		self.ppm = int(settings["ppm"])
 		self.port = int(settings["port"])
@@ -472,15 +472,15 @@ class Server:
 		for player in active_players:
 			# Free the players so they can compete once more
 			player.score += scoring[player]
-			
+
 			player.in_game = False
-			player.connection.settimeout(0)
-		
+			player.connection.settimeout(self.timeout)
+
 		scores = {}
 		for player in self.players:
 			scores[player] = player.score
 		ranking = self.game.ranking(scores)
-		
+
 		self.log_result('The current standings:')
 		for rank, player in enumerate(ranking):
 			self.log_result('%d\t%s\t%f' % (rank, player.name, player.score))
