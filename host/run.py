@@ -33,6 +33,6 @@ if __name__ == "__main__":
 		sys.exit(1)
 
 	# Attempt to initiate the server with the dynamically imported game
-	server = Server(RAIL.game, settings)
+	server = Server(RAIL, settings)
 	server.init()
 	server.go()

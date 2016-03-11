@@ -37,6 +37,7 @@ class Player:
 		self.msg = message.Message(connection, '', '')
 		self.in_game = False # Set to false when initialization is complete
 		self.timed_out = False
+		self.score = 0
 
 	def is_ready(self):
 		return self.name is not None and not self.in_game and not self.timed_out
@@ -66,7 +67,8 @@ class Server:
 		self.threads = []
 		self.alive = threading.Event() # Set in run_match
 		self.game = game
-
+		#self.scoring = game.scoring
+		
 		# Load settings from config file
 		self.ppm = int(settings["ppm"])
 		self.port = int(settings["port"])
@@ -444,7 +446,7 @@ class Server:
 				self.poll_all(tuples)
 
 			# Run the actual game
-			results = self.game(moves)
+			results = self.game.game(moves)
 
 			# Game has been played
 			games += 1
@@ -466,10 +468,22 @@ class Server:
 		# Inform the player of the result
 		tuples = [(player, message._MSGTYP["Note"], "Match ended between %s. Results - %s" % (names, scores_str)) for player in active_players]
 		responses = self.poll_all(tuples)
+		scoring = self.game.scoring(scores, self.win_by)
 		for player in active_players:
 			# Free the players so they can compete once more
+			player.score += scoring[player]
+			
 			player.in_game = False
 			player.connection.settimeout(0)
+		
+		scores = {}
+		for player in self.players:
+			scores[player] = player.score
+		ranking = self.game.ranking(scores)
+		
+		self.log_result('The current standings:')
+		for rank, player in enumerate(ranking):
+			self.log_result('%d\t%s\t%f' % (rank, player.name, player.score))
 		return scores
 
 	'''

@@ -38,3 +38,49 @@ def game(throws): #hope there are only 2 players
 		out[cur_player] = score
 
 	return out
+
+'''
+@param score dict<identifier, int> The int is the score from the march
+@return list<identifier> The list is in order of rank, i.e. list[0] had the highest score and list[-1] had the lowest
+'''
+def ranking(scores):
+	ranking = []
+	for p1 in scores:
+		ranked = False
+		for rank, p2 in enumerate(ranking):
+			if scores[p1] > scores[p2]:
+				ranking.insert(rank, p1)
+				ranked = True
+				break
+		if not ranked:
+			ranking.append(p1)	
+	return ranking
+
+'''
+@param score dict<identifier, int> The int is the score from the march
+@return dict<identifier, int> The int is that player's match score, for example 1 for win, -1 for loss, 0 for tie
+'''
+def scoring(scores, delta):
+	match_results = {}
+	rankings = ranking(scores)
+		
+	tied = []
+	points = 0
+	for rank, player in enumerate(rankings):
+		tied.append(player)
+		points += len(rankings) - 2 * rank - 1
+		if(rank + 1 < len(rankings) and scores[player] - scores[rankings[rank+1]] >= delta):
+			for p in tied:
+				match_results[p] = points / float(len(tied))
+			tied = []
+			points = 0
+		else:
+			pass
+	for p in tied:
+		match_results[p] = points / float(len(tied))	
+		
+	return match_results
+					
+					
+			
+			
