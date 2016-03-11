@@ -7,7 +7,7 @@ import random
 
 from bot_helper import *
 
-_TEAM_NAME = "Tyler" + str(random.randrange(1000)) # Note: change this to your team's name
+_TEAM_NAME = "Tyler" + str(random.randrange(1000))
 
 ################################################################################
 
@@ -20,9 +20,6 @@ def strategy(history=None):
 	# Extract moves from history
 	if history is not None:
 		history = [move.split(';')[1] for move in history]
-
-	#YOUR CODE HERE#
-	#
 
 	# There is approximately a 20% chance that it throws a random move
 	if random.randrange(100) < random.randrange(20) or not history:
@@ -38,9 +35,6 @@ def strategy(history=None):
 			return 'r'
 		elif last_mv == 's':
 			return 'p'
-
-	#
-	#END YOUR CODE#
 
 ################################################################################
 

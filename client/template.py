@@ -7,7 +7,8 @@ import random
 
 from bot_helper import *
 
-_TEAM_NAME = "YourName_" + str(random.randrange(1000)) # Note: change this to your team's name
+# Note: change this to your team's name
+_TEAM_NAME = "YourName_" + str(random.randrange(1000))
 
 ################################################################################
 
@@ -24,9 +25,7 @@ def strategy(history=None):
 	#YOUR CODE HERE#
 	#
 
-	return random.choice(list('rps'))
-
-	# ... or just use a random strategy, if you're lame...
+	return random.choice(list('rps')) # or just make random moves, if you're lame
 
 	#
 	#END YOUR CODE#

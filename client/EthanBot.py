@@ -16,7 +16,6 @@ data = 'SSRPSSSSPRSSRPPPPRRSSRSSRSRPPRSRRPPSSRRPRPSRSPRSSSPRPRSRRSRRPRSSPSSPPRSP
 bot = r.choice(list('RPS'))
 
 _TEAM_NAME += '_' + bot
-
 print _TEAM_NAME
 
 rot = {\
@@ -30,26 +29,18 @@ rot = {\
 @return string your move, 'R', 'P', or 'S'
 '''
 def strategy(history=None):
-	
-	
-	
+
 	# Extract moves from history
 	if history is not None:
 		history = [move.split(';')[1] for move in history]
 		turn = len(history)
 	else:
 		turn = 0
-		
-	#YOUR CODE HERE#
-	#
+
 	throw = rot[bot][data[turn]]
 	print turn, throw
 	return throw.lower()
 
-	# ... or just use a random strategy, if you're lame...
-
-	#
-	#END YOUR CODE#
 
 ################################################################################
 
