@@ -2,6 +2,8 @@
 TODO:
 	~/* threading for multiple connections
 	bracket / round robin support
+	elo system
+	meta elo system (over many competitions)
 	~/* "destructor" to close connections and terminate threads
 	make server handle poll_input (for token support) [message does this now]
 	unique names? (yes)
@@ -16,6 +18,8 @@ TODO:
 	create program for easily traversing logs
 
 	playerlist class
+
+	system independence
 '''
 import os
 import sys
@@ -486,7 +490,7 @@ class Server:
 			# Free the players so they can compete once more
 			player.score += scoring[player]
 			player.matches += 1
-			
+
 			player.in_game = False
 			player.connection.settimeout(self.timeout)
 

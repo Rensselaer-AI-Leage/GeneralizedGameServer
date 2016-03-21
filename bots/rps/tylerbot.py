@@ -5,7 +5,7 @@ use this, all you need to edit is the rps_strategy function
 
 import random
 
-from bot_helper import *
+from client import bot_helper as bh
 
 _TEAM_NAME = "Tyler" + str(random.randrange(1000))
 
@@ -39,6 +39,6 @@ def strategy(history=None):
 ################################################################################
 
 # Initilize the connection
-bot = BotHelper(_TEAM_NAME, strategy)
+bot = bh.BotHelper(_TEAM_NAME, strategy)
 
 raw_input("Press the any key to finish. ")

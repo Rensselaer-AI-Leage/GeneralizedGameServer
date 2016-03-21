@@ -3,9 +3,11 @@
 
 #Exclude batch files
 #*.bat
+/run_err_bot.bat
+/run_tylerbot.bat
 
 #Exclude log files
 *.log
 
-/run_err_bot.bat
+#Exclude debug files
 /client/template_err.py

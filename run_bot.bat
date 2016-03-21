@@ -1,2 +1,2 @@
-python -m client.template cloudvm.mine.nu 11111
+python -m client.template 127.0.0.1 11111
 pause
