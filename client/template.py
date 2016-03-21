@@ -25,6 +25,7 @@ def strategy(history=None):
 	#YOUR CODE HERE#
 	#
 
+	print len(history)
 	return random.choice(list('rps')) # or just make random moves, if you're lame
 
 	#

@@ -6,3 +6,6 @@
 
 #Exclude log files
 *.log
+
+/run_err_bot.bat
+/client/template_err.py

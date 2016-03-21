@@ -1,19 +1,21 @@
 '''
 TODO:
-	threading for multiple connections
+	~/* threading for multiple connections
 	bracket / round robin support
-	destructor to close connections and terminate threads
-	make server handle poll_input (for token support)
-	unique names?
+	~/* "destructor" to close connections and terminate threads
+	make server handle poll_input (for token support) [message does this now]
+	unique names? (yes)
 
-	replace all sending and things with message.py's funcitons
-	replace all tuples with structs
+	~/* replace all sending and things with message.py's funcitons
+	replace all tuples with structs (dictionaries) [note: ethan likes tuples better even though indexing is awful]
 
-	write exception logging function to call whenever an exception is caught
+	~/* write exception logging function to call whenever an exception is caught
 
 	redo poll() and poll_all() so they aren't spaghetti
 
 	create program for easily traversing logs
+
+	playerlist class
 '''
 import os
 import sys
@@ -45,6 +47,9 @@ class Player:
 	def timeout(self):
 		self.timed_out = True
 
+	def untimeout(self):
+		self.timed_out = False
+
 # Mostly just a struct to hold match information
 class Match:
 	def __init__(self, players):
@@ -53,7 +58,7 @@ class Match:
 		self.results = ''
 
 class Server:
-	''' Server class handles all communication between this program and client scripts '''
+	''' Server class handles all communication between this program and client scripts ''' # <- Docstring
 
 	'''
 	@description Constructor, initializes data members and ensures correct usage.
@@ -62,12 +67,12 @@ class Server:
 	'''
 	def __init__(self, game, settings):
 		self.players = []
-		# self.match_lock = threading.Mutex()
+		# self.match_lock = threading.Mutex() # Make sure your threads don't lock much
 		self.matches = dict()
 		self.threads = []
 		self.alive = threading.Event() # Set in run_match
 		self.game = game
-		#self.scoring = game.scoring
+		#self.scoring = game.scoring # Get scoring system from game
 
 		# Load settings from config file
 		self.ppm = int(settings["ppm"])
@@ -215,8 +220,11 @@ class Server:
 		# Seems like it defeats the purpose of polling asynchronously, but it doesn't (brain teaser?)
 		for info in recipient_infos:
 			receiver = info[0]
-			results[receiver] = threads[receiver].get()
-			#threads[receiver].join() #
+			try:
+				results[receiver] = threads[receiver].get(timeout=self.timeout)
+			except Exeption as e:
+				self.log_error(e)
+				results[receiver] = None # Worry about this later
 
 		# Clean up those threads
 		pool.close()
@@ -376,10 +384,7 @@ class Server:
 	TODO: fix this documentation
 	@description
 	@param active_players list<Player> list of players in the game
-	@param min_games int minimum number of games to play in the match (replace with config?)
-	@param max_games int maximum number of games to play in the match (replace with config?)
-	@param win_by int minimum number of games first place player must win by (replace with config?)
-	@param game_logic function(*moves) function to run the actual game logic
+	@param match_id unique identifier by which to distinguish the match
 	@return list<tuple(Player, score)> list of tuples of players and their scores after the match
 	TODO: break up this function
 	'''
@@ -394,7 +399,7 @@ class Server:
 
 		# Inform all players that they have started a match
 		tuples = [(player, message._MSGTYP["Note"], "Starting a new match between %s" % (names)) for player in active_players]
-		responses = self.poll_all(tuples)
+		self.poll_all(tuples) # We don't care about these responses
 
 		self.log("Starting a new match between %s" % (names))
 
@@ -425,6 +430,7 @@ class Server:
 			tuples = [(player, message._MSGTYP["Move"], "What is your move?") for player in active_players]
 			responses = self.poll_all(tuples)
 
+			### New Function Here ###
 			# Responses is a dict<Players, tuple<Player, tuple<Type of response(MV), move>>
 			moves = dict()
 			for response in responses:
@@ -432,11 +438,12 @@ class Server:
 				msg = responses[response]
 
 				# Get the move
-				if not msg[1]: # 't' is reserved as a timeout signal
+				if not msg or not msg[1]: # 't' is reserved as a timeout signal
 					mv = 't'
-					response.timeout()
+					response.timeout() # This is the p layer object
 				else:
 					mv = msg[1][1]
+					response.untimeout()
 
 				moves[response] = mv
 
@@ -465,6 +472,7 @@ class Server:
 
 		self.log_result("Match ended between %s. Results: %s" % (names, scores_str))
 
+		### New function here ###
 		# Inform the player of the result
 		tuples = [(player, message._MSGTYP["Note"], "Match ended between %s. Results - %s" % (names, scores_str)) for player in active_players]
 		responses = self.poll_all(tuples)
@@ -512,6 +520,7 @@ class Server:
 				player = self.init_player(client_address, connection)
 
 				try:
+					# Get player's name, this also informs the player that they have connected
 					name = self.poll(player, message._MSGTYP["Name"], "What is your name?")
 					player.name = name[1][1]
 					self.log("New player %s connected from %s" % (player.name, player.address), 1)

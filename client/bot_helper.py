@@ -70,6 +70,7 @@ class BotHelper:
 				self.message.sendAck()
 				done_with_ack = True
 			elif rq_type == msg._MSGTYP["Name"]:
+				print "Connected to server."
 				self.message.sendName(self.name)
 				done_with_ack = False
 			elif rq_type == msg._MSGTYP["Move"]:
@@ -98,9 +99,16 @@ class BotHelper:
 				continue # Unknown command, ignore
 
 	def throw(self):
-		move = self.strategy(self.history)
-		if move is not None:
-			move = move.lower()
+		try:
+			move = self.strategy(self.history)
+			if move is None:
+				raise # Gets caught in the following except thingy
+			else:
+				move = move.lower()
+		except:
+			move = 't' # Signal for timeout
+			print "Your code is either returning None, or throwing an exception!"
+
 		self.message.sendMove(move)
 
 	def cleanup(self):
