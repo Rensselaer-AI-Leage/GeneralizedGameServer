@@ -40,6 +40,7 @@ class Player:
 		self.in_game = False # Set to false when initialization is complete
 		self.timed_out = False
 		self.score = 0
+		self.matches = 0
 
 	def is_ready(self):
 		return self.name is not None and not self.in_game and not self.timed_out
@@ -222,7 +223,7 @@ class Server:
 			receiver = info[0]
 			try:
 				results[receiver] = threads[receiver].get(timeout=self.timeout)
-			except Exeption as e:
+			except Exception as e:
 				self.log_error(e)
 				results[receiver] = None # Worry about this later
 
@@ -437,13 +438,17 @@ class Server:
 				# Track moves
 				msg = responses[response]
 
-				# Get the move
-				if not msg or not msg[1]: # 't' is reserved as a timeout signal
+				try:
+					# Get the move
+					if not msg or not msg[1]: # 't' is reserved as a timeout signal
+						mv = 't'
+						response.timeout()
+					else:
+						mv = msg[1][1]
+						response.untimeout()
+				except:
 					mv = 't'
-					response.timeout() # This is the p layer object
-				else:
-					mv = msg[1][1]
-					response.untimeout()
+					continue
 
 				moves[response] = mv
 
@@ -480,18 +485,19 @@ class Server:
 		for player in active_players:
 			# Free the players so they can compete once more
 			player.score += scoring[player]
-
+			player.matches += 1
+			
 			player.in_game = False
 			player.connection.settimeout(self.timeout)
 
 		scores = {}
 		for player in self.players:
-			scores[player] = player.score
+			if player.matches > 0: scores[player] = player.score / float(player.matches)
 		ranking = self.game.ranking(scores)
 
 		self.log_result('The current standings:')
 		for rank, player in enumerate(ranking):
-			self.log_result('%d\t%s\t%f' % (rank, player.name, player.score))
+			if player.matches > 0: self.log_result('%d\t%s\t%f' % (rank, player.name, player.score / float(player.matches)))
 		return scores
 
 	'''
