@@ -32,28 +32,7 @@ from multiprocessing.pool import ThreadPool
 
 sys.path.append('..')
 from helpers import message
-
-# Mostly just a struct to hold player information
-class Player:
-	def __init__(self, token, address, connection):
-		self.token = token
-		self.name = None
-		self.address = address
-		self.connection = connection
-		self.msg = message.Message(connection, '', '')
-		self.in_game = False # Set to false when initialization is complete
-		self.timed_out = False
-		self.score = 0
-		self.matches = 0
-
-	def is_ready(self):
-		return self.name is not None and not self.in_game and not self.timed_out
-
-	def timeout(self):
-		self.timed_out = True
-
-	def untimeout(self):
-		self.timed_out = False
+import player.Player
 
 # Mostly just a struct to hold match information
 class Match:
@@ -186,7 +165,7 @@ class Server:
 
 		# Construct and send message
 		try:
-			size = receiver.msg.send(msg_type, msg_body)
+			size = receiver.con.send(msg_type, msg_body)
 
 			#Log
 			self.log("Sent %i bytes of data to %s" % (size, receiver.name), 10)
@@ -257,7 +236,7 @@ class Server:
 		else:
 			# Wait for response
 			try:
-				response = sender.msg.recv()
+				response = sender.con.recv()
 				if response[1] is not None:
 					response_msg = response[1][0]
 				else:
@@ -374,7 +353,7 @@ class Server:
 				# Set timeouts
 				# !IMPORTANT: self.match is in charge of reverting these values
 				for player in playing_players:
-					player.connection.settimeout(timeout)
+					player.con.connection.settimeout(timeout)
 					player.in_game = True
 
 				# Make new thread for the match
@@ -492,7 +471,7 @@ class Server:
 			player.matches += 1
 
 			player.in_game = False
-			player.connection.settimeout(self.timeout)
+			player.con.connection.settimeout(self.timeout)
 
 		scores = {}
 		for player in self.players:
@@ -562,7 +541,7 @@ class Server:
 		self.log("Terminating active connections...", 10)
 		for player in self.players:
 			self.send(player, message._MSGTYP["Termination"], "You don't have to go home, but you can't stay here")
-			player.connection.close()
+			player.con.connection.close()
 		self.log("Active connections terminated", 10)
 
 

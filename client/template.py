@@ -4,8 +4,10 @@ do use this, all you need to edit is the strategy function
 
 
 In order to run this:
-1. copy template to bots/<game>/<your_script_name>
-2. python -m bots.<game>.<your_script_name> <server> <port>
+1. copy template.py to bots/<game>/<your_script_name>.py
+2. edit the code as you see fit
+3. python -m bots.<game>.<your_script_name> <server> <port>
+4. there is no step number 4
 
 '''
 
@@ -20,18 +22,18 @@ _TEAM_NAME = "YourName_" + str(random.randrange(1000))
 
 '''
 @description: Decides which move to make
-@param history list<string> all the moves your opponent has made so far
+@param gamestate ? current game state
 @return string your move
 '''
-def strategy(history=None):
-	# Extract moves from history
-	if history is not None:
-		history = [move.split(';')[1] for move in history]
+def strategy(gamestate=None):
+	# Extract moves from gamestate
+	if gamestate is not None:
+		gamestate = [move.split(';')[1] for move in gamestate]
 
 	#YOUR CODE HERE#
 	#
 
-	print len(history)
+	print len(gamestate)
 	return random.choice(list('qwertyuiopasdfghjklzxcvbnm')) # or just make random moves, if you're lame
 
 	#
