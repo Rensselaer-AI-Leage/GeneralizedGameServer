@@ -9,7 +9,7 @@ from multiprocessing.pool import ThreadPool
 
 sys.path.append('..')
 from helpers import message
-import player.Player
+from player import Player
 
 # Mostly just a struct to hold match information
 class Match:
