@@ -47,20 +47,35 @@ class Server:
 		self.max_games = int(settings["max_games"])
 		self.listen_queue = int(settings["listen_queue"])
 		self.verbose = int(settings["verbose"])
-
+		self.log_folder = os.path.realpath(settings["log_folder"])
+		self.err_folder = os.path.realpath(settings["error_folder"])
+		self.res_folder = os.path.realpath(settings["results_folder"])
+		
+		if not os.path.exists(self.log_folder):
+			os.makedirs(self.log_folder)
+		if not os.path.exists(self.err_folder):
+			os.makedirs(self.err_folder)	
+		if not os.path.exists(self.res_folder):
+			os.makedirs(self.res_folder)
+			
 		self.now = lambda: str(datetime.datetime.now())
 
 		# Error log
-		fname = str(datetime.datetime.now()).replace(':', '-') + ".log"
-		self.log_file = "logs/act/" + fname
-		self.err_file = "logs/err/" + fname
-		self.res_file = "logs/res/" + fname
+		fname = self.now().replace(':', '-') + ".log"
+
+		self.log_file = os.path.join(self.log_folder, fname)
+		self.err_file = os.path.join(self.err_folder, fname)
+		self.res_file = os.path.join(self.res_folder, fname)
+		
+			
+
+		
 
 		with open(self.log_file, 'w') as f:
 			f.write("Activity log for RAIL GGS:\n---------------------\n")
 		with open(self.err_file, 'w') as f:
 			f.write("Error log for RAIL GGS:\n---------------------\n")
-		with open(self.err_file, 'w') as f:
+		with open(self.res_file, 'w') as f:
 			f.write("Results log for RAIL GGS:\n---------------------\n")
 
 	# TODO: Implement locks on files since everything is asynchronous
