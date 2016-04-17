@@ -9,6 +9,7 @@ from multiprocessing.pool import ThreadPool
 
 sys.path.append('..')
 from helpers import message
+from helpers.filelock import FileLock
 from player import Player
 
 # Mostly just a struct to hold match information
@@ -66,10 +67,6 @@ class Server:
 		self.log_file = os.path.join(self.log_folder, fname)
 		self.err_file = os.path.join(self.err_folder, fname)
 		self.res_file = os.path.join(self.res_folder, fname)
-		
-			
-
-		
 
 		with open(self.log_file, 'w') as f:
 			f.write("Activity log for RAIL GGS:\n---------------------\n")
@@ -89,7 +86,9 @@ class Server:
 		sys.stdout.flush()
 
 		now = str(datetime.datetime.now())
-		with open(self.log_file, 'a') as f:
+		
+		# Grab the lock
+		with FileLock(self.log_file), open(self.log_file, 'a') as f:
 			f.write(self.now() + ':\t')
 			f.write(msg + '\n')
 
@@ -113,7 +112,8 @@ class Server:
 	@return Exception the exception passed as an arg
 	'''
 	def log_error(self, e):
-		with open(self.err_file, 'a') as f:
+		# Grab the lock
+		with FileLock(self.err_file), open(self.err_file, 'a') as f:
 			f.write(self.now() + ':\t')
 			f.write(str(e) + ('\n'))
 		#self.report("An exception has been raised: %s" % (e,))
@@ -125,7 +125,8 @@ class Server:
 	@return string the passed results
 	'''
 	def log_result(self, results):
-		with open(self.res_file, 'a') as f:
+		# Grab the lock
+		with FileLock(self.res_file), open(self.res_file, 'a') as f:
 			f.write(self.now() + ':\t')
 			f.write(results + '\n')
 		return self.log(results, 2)
@@ -238,7 +239,7 @@ class Server:
 			except Exception as e:
 				out = (sender, None)
 				self.log_error(e)
-
+				
 		# Return the response
 		return out
 
